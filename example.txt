@@ -1,1 +1,261 @@
-"ubaid"
+//aStar
+import heapq
+
+graph = {
+    'A': [('B', 2), ('E', 3)],
+    'B': [('A', 2), ('C', 1), ('G', 9)],
+    'C': [('B', 1)],
+    'E': [('A', 3), ('D', 6)],
+    'D': [('E', 6), ('G', 1)],
+    'G': [('B', 9), ('D', 1)]
+}
+
+heuristics = {
+    'A': 11,
+    'B': 6,
+    'C': 99,
+    'E': 7,
+    'D': 1,
+    'G': 0
+}
+
+def a_star(graph, heuristics, start, goal):
+    open_list = []
+    heapq.heappush(open_list, (heuristics[start], start, [start], 0))
+    
+    closed_set = set()
+
+    while open_list:
+        f_n, current_node, path, g_n = heapq.heappop(open_list)
+        
+        if current_node == goal:
+            return path, g_n
+        
+        closed_set.add(current_node)
+        
+        for neighbor, cost in graph[current_node]:
+            if neighbor in closed_set:
+                continue
+            
+            g_neighbor = g_n + cost
+            f_neighbor = g_neighbor + heuristics[neighbor]
+            
+            heapq.heappush(open_list, (f_neighbor, neighbor, path + [neighbor], g_neighbor))
+
+    return None, float('inf')
+
+path, cost = a_star(graph, heuristics, 'A', 'G')
+
+print(f"Path: {path}")
+print(f"Total cost: {cost}")
+
+//geneticAlgo
+import random
+import math
+
+class GA:
+    def __init__(self, individualSize, populationSize):
+        self.population = dict()
+        self.individualSize = individualSize
+        self.populationSize = populationSize
+        self.totalFitness = 0
+        i = 0
+        while i < populationSize:
+            listOfBits = [0] * individualSize
+            listOfLocations = list(range(0, individualSize))
+            numberOfOnes = random.randint(0, individualSize - 1)
+            onesLocations = random.sample(listOfLocations, numberOfOnes)
+            for j in onesLocations:
+                listOfBits[j] = 1
+            self.population[i] = [listOfBits, numberOfOnes]
+            self.totalFitness += numberOfOnes
+            i += 1
+
+    def updatePopulationFitness(self):
+        self.totalFitness = 0
+        for individual in self.population:
+            individualFitness = sum(self.population[individual][0])
+            self.population[individual][1] = individualFitness
+            self.totalFitness += individualFitness
+
+    def selectParents(self):
+        wheelSize = self.populationSize * 5
+        h_n = []
+        for individual in self.population:
+            h_n.append(self.population[individual][1])
+        j = 0
+        rouletteWheel = []
+        for individual in self.population:
+            individuallength = round(wheelSize * (h_n[j] / sum(h_n)))
+            if individuallength > 0:
+                i = 0
+                while i < individuallength:
+                    rouletteWheel.append(individual)
+                    i += 1
+            j += 1
+        random.shuffle(rouletteWheel)
+        parentIndices = []
+        i = 0
+        while i < self.populationSize:
+            parentIndices.append(rouletteWheel[random.randint(0, len(rouletteWheel) - 1)])
+            i += 1
+        newGeneration = dict()
+        i = 0
+        while i < self.populationSize:
+            newGeneration[i] = self.population[parentIndices[i]].copy()
+            i += 1
+        del self.population
+        self.population = newGeneration.copy()
+        self.updatePopulationFitness()
+
+    def generateChildren(self, crossoverProbability):
+        numberOfPairs = round(crossoverProbability * self.populationSize / 2)
+        individualIndices = list(range(0, self.populationSize))
+        random.shuffle(individualIndices)
+        i = 0
+        j = 0
+        while i < numberOfPairs:
+            crossoverPoint = random.randint(0, self.individualSize - 1)
+            child1 = self.population[j][0][:crossoverPoint] + self.population[j + 1][0][crossoverPoint:]
+            child2 = self.population[j + 1][0][:crossoverPoint] + self.population[j][0][crossoverPoint:]
+            self.population[j] = [child1, sum(child1)]
+            self.population[j + 1] = [child2, sum(child2)]
+            i += 1
+            j += 2
+        self.updatePopulationFitness()
+
+    def mutateChildren(self, mutationProbability):
+        numberOfBits = round(mutationProbability * self.populationSize * self.individualSize)
+        totalIndices = list(range(0, self.populationSize * self.individualSize))
+        random.shuffle(totalIndices)
+        swapLocations = random.sample(totalIndices, numberOfBits)
+        for loc in swapLocations:
+            individualIndex = math.floor(loc / self.individualSize)
+            bitIndex = loc % self.individualSize
+            if self.population[individualIndex][0][bitIndex] == 0:
+                self.population[individualIndex][0][bitIndex] = 1
+            else:
+                self.population[individualIndex][0][bitIndex] = 0
+        self.updatePopulationFitness()
+
+individualSize, populationSize = 8, 10
+i = 0
+instance = GA(individualSize, populationSize)
+while True:
+    instance.selectParents()
+    instance.generateChildren(0.8)
+    instance.mutateChildren(0.03)
+    print(instance.population)
+    print(instance.totalFitness)
+    print(i)
+    i += 1
+    found = False
+    for individual in instance.population:
+        if instance.population[individual][1] == individualSize:
+            found = True
+            break
+    if found:
+        break
+
+//csp
+from typing import Generic, TypeVar, Dict, List, Optional
+from abc import ABC, abstractmethod
+
+V = TypeVar('V') 
+D = TypeVar('D') 
+
+
+
+class Constraint(Generic[V, D], ABC):
+    
+    def __init__(self, variables: List[V]) -> None:
+        self.variables = variables
+
+    
+    @abstractmethod
+    def satisfied(self, assignment: Dict[V, D]) -> bool:
+        ...
+
+
+
+class CSP(Generic[V, D]):
+    def __init__(self, variables: List[V], domains: Dict[V, List[D]]) -> None:
+        self.variables: List[V] = variables 
+        self.domains: Dict[V, List[D]] = domains 
+        self.constraints: Dict[V, List[Constraint[V, D]]] = {}
+        for variable in self.variables:
+            self.constraints[variable] = []
+            if variable not in self.domains:
+                raise LookupError("Every variable should have a domain assigned to it.")
+
+    def add_constraint(self, constraint: Constraint[V, D]) -> None:
+        for variable in constraint.variables:
+            if variable not in self.variables:
+                raise LookupError("Variable in constraint not in CSP")
+            else:
+                self.constraints[variable].append(constraint)
+
+    
+    def consistent(self, variable: V, assignment: Dict[V, D]) -> bool:
+        for constraint in self.constraints[variable]:
+            if not constraint.satisfied(assignment):
+                return False
+        return True
+
+    def backtracking_search(self, assignment: Dict[V, D] = {}) -> Optional[Dict[V, D]]:
+        
+        if len(assignment) == len(self.variables):
+            return assignment
+
+        
+        unassigned: List[V] = [v for v in self.variables if v not in assignment]
+
+        
+        first: V = unassigned[0]
+        for value in self.domains[first]:
+            local_assignment = assignment.copy()
+            local_assignment[first] = value
+            
+            if self.consistent(first, local_assignment):
+                result: Optional[Dict[V, D]] = self.backtracking_search(local_assignment)
+                if result is not None:
+                    return result
+        return None
+
+from typing import Dict, List, Optional
+
+
+class MapColoringConstraint(Constraint[str, str]):
+    def __init__(self, place1: str, place2: str) -> None:
+        super().__init__([place1, place2])
+        self.place1: str = place1
+        self.place2: str = place2
+
+    def satisfied(self, assignment: Dict[str, str]) -> bool:
+        if self.place1 not in assignment or self.place2 not in assignment:
+            return True
+        return assignment[self.place1] != assignment[self.place2]
+
+
+if __name__ == "__main__":
+    variables: List[str] = ["Western Australia", "Northern Territory", "South Australia",
+                            "Queensland", "New South Wales", "Victoria", "Tasmania"]
+    domains: Dict[str, List[str]] = {}
+    for variable in variables:
+        domains[variable] = ["red", "green", "blue"]
+    csp: CSP[str, str] = CSP(variables, domains)
+    csp.add_constraint(MapColoringConstraint("Western Australia", "Northern Territory"))
+    csp.add_constraint(MapColoringConstraint("Western Australia", "South Australia"))
+    csp.add_constraint(MapColoringConstraint("South Australia", "Northern Territory"))
+    csp.add_constraint(MapColoringConstraint("Queensland", "Northern Territory"))
+    csp.add_constraint(MapColoringConstraint("Queensland", "South Australia"))
+    csp.add_constraint(MapColoringConstraint("Queensland", "New South Wales"))
+    csp.add_constraint(MapColoringConstraint("New South Wales", "South Australia"))
+    csp.add_constraint(MapColoringConstraint("Victoria", "South Australia"))
+    csp.add_constraint(MapColoringConstraint("Victoria", "New South Wales"))
+    csp.add_constraint(MapColoringConstraint("Victoria", "Tasmania"))
+    solution: Optional[Dict[str, str]] = csp.backtracking_search()
+    if solution is None:
+        print("No solution found!")
+    else:
+        print(solution)
