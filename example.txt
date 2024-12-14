@@ -1,182 +1,121 @@
-//aStar
-import heapq
+                    *************** HILL CLIMBING ***************
+def hill_climbing(graph, start_node):
+    current_node = start_node
+
+    while True:
+        children = graph[current_node]['children']
+
+        if not children:
+            return current_node
+
+        best_child = max(children, key=lambda child: graph[child]['value'])
+
+        if graph[best_child]['value'] <= graph[current_node]['value']:
+            return current_node
+
+        current_node = best_child
 
 graph = {
-    'A': [('B', 2), ('E', 3)],
-    'B': [('A', 2), ('C', 1), ('G', 9)],
-    'C': [('B', 1)],
-    'E': [('A', 3), ('D', 6)],
-    'D': [('E', 6), ('G', 1)],
-    'G': [('B', 9), ('D', 1)]
+    'A': {'value': 10, 'children': ['B', 'C', 'D']},
+    'B': {'value': 20, 'children': []},
+    'C': {'value': 30, 'children': ['E', 'F']},
+    'D': {'value': 15, 'children': []},
+    'E': {'value': 35, 'children': []},
+    'F': {'value': 25, 'children': []}
 }
 
-heuristics = {
-    'A': 11,
-    'B': 6,
-    'C': 99,
-    'E': 7,
-    'D': 1,
-    'G': 0
-}
+result = hill_climbing(graph, 'A')
+print(f"Reached node with value: {graph[result]['value']} (Node: {result})")
 
-def a_star(graph, heuristics, start, goal):
-    open_list = []
-    heapq.heappush(open_list, (heuristics[start], start, [start], 0))
-    
-    closed_set = set()
 
-    while open_list:
-        f_n, current_node, path, g_n = heapq.heappop(open_list)
-        
-        if current_node == goal:
-            return path, g_n
-        
-        closed_set.add(current_node)
-        
-        for neighbor, cost in graph[current_node]:
-            if neighbor in closed_set:
-                continue
-            
-            g_neighbor = g_n + cost
-            f_neighbor = g_neighbor + heuristics[neighbor]
-            
-            heapq.heappush(open_list, (f_neighbor, neighbor, path + [neighbor], g_neighbor))
-
-    return None, float('inf')
-
-path, cost = a_star(graph, heuristics, 'A', 'G')
-
-print(f"Path: {path}")
-print(f"Total cost: {cost}")
-
-//geneticAlgo
+                    *************** GENETIC ALGORITHM ***************
 import random
-import math
 
 class GA:
     def __init__(self, individualSize, populationSize):
-        self.population = dict()
+        self.population = {}
         self.individualSize = individualSize
         self.populationSize = populationSize
         self.totalFitness = 0
-        i = 0
-        while i < populationSize:
-            listOfBits = [0] * individualSize
-            listOfLocations = list(range(0, individualSize))
-            numberOfOnes = random.randint(0, individualSize - 1)
-            onesLocations = random.sample(listOfLocations, numberOfOnes)
-            for j in onesLocations:
-                listOfBits[j] = 1
-            self.population[i] = [listOfBits, numberOfOnes]
-            self.totalFitness += numberOfOnes
-            i += 1
+        for i in range(populationSize):
+            individual = [random.randint(0, 1) for _ in range(individualSize)]
+            fitness = sum(individual)
+            self.population[i] = [individual, fitness]
+            self.totalFitness += fitness
 
     def updatePopulationFitness(self):
-        self.totalFitness = 0
-        for individual in self.population:
-            individualFitness = sum(self.population[individual][0])
-            self.population[individual][1] = individualFitness
-            self.totalFitness += individualFitness
+        self.totalFitness = sum(ind[1] for ind in self.population.values())
 
     def selectParents(self):
-        wheelSize = self.populationSize * 5
-        h_n = []
-        for individual in self.population:
-            h_n.append(self.population[individual][1])
-        j = 0
-        rouletteWheel = []
-        for individual in self.population:
-            individuallength = round(wheelSize * (h_n[j] / sum(h_n)))
-            if individuallength > 0:
-                i = 0
-                while i < individuallength:
-                    rouletteWheel.append(individual)
-                    i += 1
-            j += 1
-        random.shuffle(rouletteWheel)
-        parentIndices = []
-        i = 0
-        while i < self.populationSize:
-            parentIndices.append(rouletteWheel[random.randint(0, len(rouletteWheel) - 1)])
-            i += 1
-        newGeneration = dict()
-        i = 0
-        while i < self.populationSize:
-            newGeneration[i] = self.population[parentIndices[i]].copy()
-            i += 1
-        del self.population
-        self.population = newGeneration.copy()
-        self.updatePopulationFitness()
+        wheel = []
+        totalFitness = self.totalFitness
+        for i in range(self.populationSize):
+            tickets = int((self.population[i][1] / totalFitness) * 100)
+            wheel.extend([i] * tickets)
+        random.shuffle(wheel)
+        newPopulation = {}
+        for i in range(self.populationSize):
+            parent = random.choice(wheel)
+            newPopulation[i] = self.population[parent]
+        self.population = newPopulation.copy()
 
     def generateChildren(self, crossoverProbability):
-        numberOfPairs = round(crossoverProbability * self.populationSize / 2)
-        individualIndices = list(range(0, self.populationSize))
-        random.shuffle(individualIndices)
-        i = 0
-        j = 0
-        while i < numberOfPairs:
-            crossoverPoint = random.randint(0, self.individualSize - 1)
-            child1 = self.population[j][0][:crossoverPoint] + self.population[j + 1][0][crossoverPoint:]
-            child2 = self.population[j + 1][0][:crossoverPoint] + self.population[j][0][crossoverPoint:]
-            self.population[j] = [child1, sum(child1)]
-            self.population[j + 1] = [child2, sum(child2)]
-            i += 1
-            j += 2
-        self.updatePopulationFitness()
+        indices = list(range(self.populationSize))
+        random.shuffle(indices)
+        for i in range(0, self.populationSize - 1, 2):
+            if random.random() < crossoverProbability:
+                point = random.randint(1, self.individualSize - 1)
+                p1, p2 = indices[i], indices[i + 1]
+                child1 = self.population[p1][0][:point] + self.population[p2][0][point:]
+                child2 = self.population[p2][0][:point] + self.population[p1][0][point:]
+                self.population[p1] = [child1, sum(child1)]
+                self.population[p2] = [child2, sum(child2)]
 
     def mutateChildren(self, mutationProbability):
-        numberOfBits = round(mutationProbability * self.populationSize * self.individualSize)
-        totalIndices = list(range(0, self.populationSize * self.individualSize))
-        random.shuffle(totalIndices)
-        swapLocations = random.sample(totalIndices, numberOfBits)
-        for loc in swapLocations:
-            individualIndex = math.floor(loc / self.individualSize)
-            bitIndex = loc % self.individualSize
-            if self.population[individualIndex][0][bitIndex] == 0:
-                self.population[individualIndex][0][bitIndex] = 1
-            else:
-                self.population[individualIndex][0][bitIndex] = 0
-        self.updatePopulationFitness()
+        totalBits = self.populationSize * self.individualSize
+        for _ in range(int(mutationProbability * totalBits)):
+            ind = random.randint(0, self.populationSize - 1)
+            bit = random.randint(0, self.individualSize - 1)
+            self.population[ind][0][bit] ^= 1
+            self.population[ind][1] = sum(self.population[ind][0])
 
-individualSize, populationSize = 8, 10
-i = 0
-instance = GA(individualSize, populationSize)
-while True:
-    instance.selectParents()
-    instance.generateChildren(0.8)
-    instance.mutateChildren(0.03)
-    print(instance.population)
-    print(instance.totalFitness)
-    print(i)
-    i += 1
-    found = False
-    for individual in instance.population:
-        if instance.population[individual][1] == individualSize:
-            found = True
-            break
-    if found:
-        break
+    def run(self, crossoverProbability, mutationProbability, maxGenerations):
+        for gen in range(maxGenerations):
+            self.selectParents()
+            self.generateChildren(crossoverProbability)
+            self.mutateChildren(mutationProbability)
+            self.updatePopulationFitness()
+            bestFitness = max(ind[1] for ind in self.population.values())
+            print(f"Generation {gen}: Best Fitness = {bestFitness}")
+            if bestFitness == self.individualSize:
+                print("Solution found!")
+                break
 
-//csp
+individualSize = 8
+populationSize = 10
+crossoverProbability = 0.8
+mutationProbability = 0.03
+maxGenerations = 1000
+
+ga = GA(individualSize, populationSize)
+ga.run(crossoverProbability, mutationProbability, maxGenerations)
+
+
+                    *************** CSP ***************
 from typing import Generic, TypeVar, Dict, List, Optional
 from abc import ABC, abstractmethod
 
 V = TypeVar('V') 
 D = TypeVar('D') 
 
-
-
 class Constraint(Generic[V, D], ABC):
     
     def __init__(self, variables: List[V]) -> None:
         self.variables = variables
 
-    
     @abstractmethod
     def satisfied(self, assignment: Dict[V, D]) -> bool:
         ...
-
-
 
 class CSP(Generic[V, D]):
     def __init__(self, variables: List[V], domains: Dict[V, List[D]]) -> None:
@@ -194,7 +133,6 @@ class CSP(Generic[V, D]):
                 raise LookupError("Variable in constraint not in CSP")
             else:
                 self.constraints[variable].append(constraint)
-
     
     def consistent(self, variable: V, assignment: Dict[V, D]) -> bool:
         for constraint in self.constraints[variable]:
@@ -206,10 +144,8 @@ class CSP(Generic[V, D]):
         
         if len(assignment) == len(self.variables):
             return assignment
-
         
         unassigned: List[V] = [v for v in self.variables if v not in assignment]
-
         
         first: V = unassigned[0]
         for value in self.domains[first]:
@@ -224,7 +160,6 @@ class CSP(Generic[V, D]):
 
 from typing import Dict, List, Optional
 
-
 class MapColoringConstraint(Constraint[str, str]):
     def __init__(self, place1: str, place2: str) -> None:
         super().__init__([place1, place2])
@@ -235,7 +170,6 @@ class MapColoringConstraint(Constraint[str, str]):
         if self.place1 not in assignment or self.place2 not in assignment:
             return True
         return assignment[self.place1] != assignment[self.place2]
-
 
 if __name__ == "__main__":
     variables: List[str] = ["Western Australia", "Northern Territory", "South Australia",
@@ -259,3 +193,97 @@ if __name__ == "__main__":
         print("No solution found!")
     else:
         print(solution)
+
+
+                    *************** COMPLEX KNOWLEDGE BASE ***************
+start :-
+    write("Enter your date of the month (e.g., 1 for 1st): "),
+    read(Date),
+    write("Enter your month of the year (e.g., 2 for February): "),
+    read(Month),
+    (   valid_date(Month, Date)
+    ->  check_zodiac(Month, Date)
+    ;   write("Invalid date or month! Please try again."), nl
+    ).
+
+% Check if the given date is valid
+valid_date(Month, Date) :-
+    member(Month, [1, 3, 5, 7, 8, 10, 12]), % Months with 31 days
+    Date >= 1, Date =< 31;
+    member(Month, [4, 6, 9, 11]),           % Months with 30 days
+    Date >= 1, Date =< 30;
+    Month = 2,                              % February
+    Date >= 1, Date =< 28;
+    Month = 2, Date = 29,                   % Leap year check for 29th February
+    is_leap_year.
+
+% Check if the current year is a leap year
+is_leap_year :-
+    get_time(T), stamp_date_time(T, date(Year, _, _, _, _, _, _, _, _), 'UTC'),
+    (   0 is Year mod 400
+    ;   0 is Year mod 4, Year mod 100 \= 0
+    ).
+
+% Determine the zodiac sign
+check_zodiac(Month, Date) :-
+    Month = 3, Date >= 21, aries, !;
+    Month = 4, Date =< 19, aries, !;
+    Month = 4, Date >= 20, taurus, !;
+    Month = 5, Date =< 20, taurus, !;
+    Month = 5, Date >= 21, gemini, !;
+    Month = 6, Date =< 20, gemini, !;
+    Month = 6, Date >= 21, cancer, !;
+    Month = 7, Date =< 22, cancer, !;
+    Month = 7, Date >= 23, leo, !;
+    Month = 8, Date =< 22, leo, !;
+    Month = 8, Date >= 23, virgo, !;
+    Month = 9, Date =< 22, virgo, !;
+    Month = 9, Date >= 23, libra, !;
+    Month = 10, Date =< 22, libra, !;
+    Month = 10, Date >= 23, scorpio, !;
+    Month = 11, Date =< 21, scorpio, !;
+    Month = 11, Date >= 22, sagittarius, !;
+    Month = 12, Date =< 21, sagittarius, !;
+    Month = 12, Date >= 22, capricorn, !;
+    Month = 1, Date =< 19, capricorn, !;
+    Month = 1, Date >= 20, aquarius, !;
+    Month = 2, Date =< 18, aquarius, !;
+    Month = 2, Date >= 19, pisces, !;
+    Month = 3, Date =< 20, pisces, !.
+
+% Zodiac sign responses
+aries :- write("Your Zodiac Sign is Aries."), nl.
+taurus :- write("Your Zodiac Sign is Taurus."), nl.
+gemini :- write("Your Zodiac Sign is Gemini."), nl.
+cancer :- write("Your Zodiac Sign is Cancer."), nl.
+leo :- write("Your Zodiac Sign is Leo."), nl.
+virgo :- write("Your Zodiac Sign is Virgo."), nl.
+libra :- write("Your Zodiac Sign is Libra."), nl.
+scorpio :- write("Your Zodiac Sign is Scorpio."), nl.
+sagittarius :- write("Your Zodiac Sign is Sagittarius."), nl.
+capricorn :- write("Your Zodiac Sign is Capricorn."), nl.
+aquarius :- write("Your Zodiac Sign is Aquarius."), nl.
+pisces :- write("Your Zodiac Sign is Pisces."), nl.
+
+
+                    *************** EXPERT SYSTEMS ***************
+start :-
+    write("Enter your choice of days and cost:"), nl,
+    write("What is your days limit: "), read(Day),
+    write("What is your cost limit: "), read(Cost),
+    checkpackage(Day, Cost).
+
+checkpackage(Day, Cost) :-
+    Day > 0, Day < 6, Cost = 800, brahamaputra, !;
+    Day > 5, Day < 8, Cost = 1000, ganges, !;
+    Day > 7, Day < 15, Cost = 1500, indus, !;
+    write("No suitable package found."), nl.
+
+brahamaputra :-
+    write("Package suitable to you is Brahamaputra."), nl.
+
+ganges :-
+    write("Package suitable to you is Ganges."), nl.
+
+indus :-
+    write("Package suitable to you is Indus."), nl.

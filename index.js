@@ -7,7 +7,7 @@ const path = require("path");
 const app = express();
 
 // Define a route to serve the text file
-app.get("*", (req, res) => {
+app.get("/*", (req, res) => {
   const fileName = "example.txt";
   const filePath = path.join(__dirname, fileName);
 
