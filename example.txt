@@ -31,74 +31,76 @@ print(f"Reached node with value: {graph[result]['value']} (Node: {result})")
                     *************** GENETIC ALGORITHM ***************
 import random
 
-class GA:
-    def __init__(self, individualSize, populationSize):
-        self.population = {}
-        self.individualSize = individualSize
-        self.populationSize = populationSize
-        self.totalFitness = 0
-        for i in range(populationSize):
-            individual = [random.randint(0, 1) for _ in range(individualSize)]
-            fitness = sum(individual)
-            self.population[i] = [individual, fitness]
-            self.totalFitness += fitness
+class GeneticAlgo:
+    def __init__(self, individual_size, population_size, mutation_rate, crossover_rate):
+        self.individual_size = individual_size
+        self.population_size = population_size
+        self.mutation_rate = mutation_rate
+        self.crossover_rate = crossover_rate
+        self.population = self.initialize_population()
 
-    def updatePopulationFitness(self):
-        self.totalFitness = sum(ind[1] for ind in self.population.values())
+    def initialize_population(self):
+        return [''.join(random.choice('01') for _ in range(self.individual_size)) for _ in range(self.population_size)]
 
-    def selectParents(self):
-        wheel = []
-        totalFitness = self.totalFitness
-        for i in range(self.populationSize):
-            tickets = int((self.population[i][1] / totalFitness) * 100)
-            wheel.extend([i] * tickets)
-        random.shuffle(wheel)
-        newPopulation = {}
-        for i in range(self.populationSize):
-            parent = random.choice(wheel)
-            newPopulation[i] = self.population[parent]
-        self.population = newPopulation.copy()
+    def fitness_function(self, individual):
+        return sum(int(bit) for bit in individual)
 
-    def generateChildren(self, crossoverProbability):
-        indices = list(range(self.populationSize))
-        random.shuffle(indices)
-        for i in range(0, self.populationSize - 1, 2):
-            if random.random() < crossoverProbability:
-                point = random.randint(1, self.individualSize - 1)
-                p1, p2 = indices[i], indices[i + 1]
-                child1 = self.population[p1][0][:point] + self.population[p2][0][point:]
-                child2 = self.population[p2][0][:point] + self.population[p1][0][point:]
-                self.population[p1] = [child1, sum(child1)]
-                self.population[p2] = [child2, sum(child2)]
+    def select_parents(self):
+        fitness_scores = {ind: self.fitness_function(ind) for ind in self.population}
+        sorted_population = sorted(self.population, key=lambda ind: fitness_scores[ind], reverse=True)
+        return sorted_population[:len(self.population) // 2]
 
-    def mutateChildren(self, mutationProbability):
-        totalBits = self.populationSize * self.individualSize
-        for _ in range(int(mutationProbability * totalBits)):
-            ind = random.randint(0, self.populationSize - 1)
-            bit = random.randint(0, self.individualSize - 1)
-            self.population[ind][0][bit] ^= 1
-            self.population[ind][1] = sum(self.population[ind][0])
+    def crossover(self, parent1, parent2):
+        point = random.randint(1, self.individual_size - 1)
+        return parent1[:point] + parent2[point:]
 
-    def run(self, crossoverProbability, mutationProbability, maxGenerations):
-        for gen in range(maxGenerations):
-            self.selectParents()
-            self.generateChildren(crossoverProbability)
-            self.mutateChildren(mutationProbability)
-            self.updatePopulationFitness()
-            bestFitness = max(ind[1] for ind in self.population.values())
-            print(f"Generation {gen}: Best Fitness = {bestFitness}")
-            if bestFitness == self.individualSize:
-                print("Solution found!")
-                break
+    def mutate(self, individual):
+        return ''.join(
+            char if random.random() > self.mutation_rate else str(1 - int(char))
+            for char in individual
+        )
 
-individualSize = 8
-populationSize = 10
-crossoverProbability = 0.8
-mutationProbability = 0.03
-maxGenerations = 1000
+    def generate_children(self):
+        parents = self.select_parents()
+        next_generation = []
 
-ga = GA(individualSize, populationSize)
-ga.run(crossoverProbability, mutationProbability, maxGenerations)
+        while len(next_generation) < self.population_size:
+            parent1, parent2 = random.sample(parents, 2)
+            if random.random() < self.crossover_rate:
+                child = self.crossover(parent1, parent2)
+            else:
+                child = random.choice([parent1, parent2])
+
+            child = self.mutate(child)
+            next_generation.append(child)
+
+        self.population = next_generation
+
+    def run(self):
+        generation = 0
+        while True:
+            fitness_scores = {ind: self.fitness_function(ind) for ind in self.population}
+
+            print(f"Generation {generation}:")
+            for individual, fitness in fitness_scores.items():
+                print(f"  Individual: {individual}, Fitness: {fitness}")
+
+            for individual, fitness in fitness_scores.items():
+                if fitness == self.individual_size:  # Desired fitness value
+                    print(f"Found individual with fitness {self.individual_size} in generation {generation}")
+                    return individual
+
+            self.generate_children()
+            generation += 1
+
+# Example usage
+if __name__ == "__main__":
+    individual_size, population_size = 8, 10
+    mutation_rate, crossover_rate = 0.03, 0.8
+
+    instance = GeneticAlgo(individual_size, population_size, mutation_rate, crossover_rate)
+    result = instance.run()
+    print(f"Best individual: {result} with fitness: {instance.fitness_function(result)}")
 
 
                     *************** CSP ***************
