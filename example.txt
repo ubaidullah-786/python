@@ -197,6 +197,100 @@ if __name__ == "__main__":
         print(solution)
 
 
+                    *************** CSP WITH N-QUEENS PROBLEM ***************
+from typing import List, Dict, Optional, Generic, TypeVar
+
+# Generic Types
+V = TypeVar('V')  # Variable Type
+D = TypeVar('D')  # Domain Type
+
+# Abstract Constraint Base Class
+class Constraint(Generic[V, D]):
+    def __init__(self, variables: List[V]) -> None:
+        self.variables = variables
+
+    def satisfied(self, assignment: Dict[V, D]) -> bool:
+        raise NotImplementedError("Subclasses must override satisfied()")
+
+# CSP Class
+class CSP(Generic[V, D]):
+    def __init__(self, variables: List[V], domains: Dict[V, List[D]]) -> None:
+        self.variables = variables
+        self.domains = domains
+        self.constraints: Dict[V, List[Constraint[V, D]]] = {var: [] for var in variables}
+
+    def add_constraint(self, constraint: Constraint[V, D]) -> None:
+        for variable in constraint.variables:
+            if variable not in self.variables:
+                raise ValueError(f"Variable {variable} not in CSP")
+            self.constraints[variable].append(constraint)
+
+    def consistent(self, variable: V, assignment: Dict[V, D]) -> bool:
+        for constraint in self.constraints[variable]:
+            if not constraint.satisfied(assignment):
+                return False
+        return True
+
+    def solve(self, assignment: Dict[V, D] = {}) -> Optional[Dict[V, D]]:
+        if len(assignment) == len(self.variables):
+            return assignment
+
+        unassigned = [v for v in self.variables if v not in assignment]
+        current_variable = unassigned[0]
+
+        for value in self.domains[current_variable]:
+            local_assignment = assignment.copy()
+            local_assignment[current_variable] = value
+            if self.consistent(current_variable, local_assignment):
+                result = self.solve(local_assignment)
+                if result is not None:
+                    return result
+        return None
+
+# N-Queens Constraint Class
+class NQueensConstraint(Constraint[int, int]):
+    def __init__(self, queens: List[int]) -> None:
+        super().__init__(queens)
+        self.queens = queens
+
+    def satisfied(self, assignment: Dict[int, int]) -> bool:
+        for q1 in assignment:
+            for q2 in assignment:
+                if q1 == q2:
+                    continue
+                if assignment[q1] == assignment[q2]:  # Same row
+                    return False
+                if abs(q1 - q2) == abs(assignment[q1] - assignment[q2]):  # Diagonals
+                    return False
+        return True
+
+# Main Function to Solve N-Queens
+def main():
+    n = 4  # Size of the board
+    variables = [i for i in range(n)]  # Columns 0 to n-1
+    domains = {var: [row for row in range(n)] for var in variables}  # Rows 0 to n-1
+
+    csp = CSP(variables, domains)
+    csp.add_constraint(NQueensConstraint(variables))
+
+    solution = csp.solve()
+    if solution:
+        print("Solution Found:")
+        # Display board
+        for row in range(n):
+            line = ""
+            for col in range(n):
+                if solution.get(col) == row:
+                    line += "Q "
+                else:
+                    line += ". "
+            print(line)
+    else:
+        print("No solution exists.")
+
+if __name__ == "__main__":
+    main()
+
                     *************** COMPLEX KNOWLEDGE BASE ***************
 start :-
     write("Enter your date of the month (e.g., 1 for 1st): "),
